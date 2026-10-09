@@ -201,7 +201,7 @@ const baseOk = fetch('base.json').then(r=>r.json()).then(b=>{ BASE=b; ITENS=b.it
 const CAP = window.Capacitor;
 const nativo = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform());
 const plug = n => nativo ? (CAP.Plugins && CAP.Plugins[n]) || (CAP.registerPlugin ? CAP.registerPlugin(n) : null) : null;
-const TTS = plug('TextToSpeech'), NOTIF = plug('LocalNotifications');
+const TTS = plug('TextToSpeech'), NOTIF = plug('LocalNotifications'), SCAN = plug('BarcodeScanner');
 
 /* ---------- textos simples por princípio ativo (demonstração) ---------- */
 const INFO = {
@@ -391,8 +391,9 @@ function renderLer(){
     <h2>Que remédio é este?</h2>${conf}
     <div id="resBox"></div>
     <div class="scan-zone">
-      <label class="btn btn-pill" for="photo" id="bFoto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Fotografar o código de barras</label>
-      <button class="btn btn-ghost" id="bVivo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3"/></svg>Usar câmera ao vivo</button>
+      ${SCAN?`<button class="btn btn-pill" id="bScan" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3M8 8v8M12 8v8M16 8v8"/></svg>Ler código de barras</button>`:''}
+      <label class="btn btn-pill" for="photo" id="bFoto" ${SCAN?'hidden':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Fotografar o código de barras</label>
+      <button class="btn btn-ghost" id="bVivo" ${SCAN?'hidden':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3"/></svg>Usar câmera ao vivo</button>
       <div class="video-box" id="vBox" hidden><video id="video" playsinline muted></video><div class="aim"></div></div>
       <div id="scanMsg"></div>
       <form class="manual" id="fManual"><input id="code" inputmode="numeric" autocomplete="off" placeholder="Ou digite o número" aria-label="Número do código de barras"><button class="btn btn-main" type="submit">Buscar</button></form>
@@ -402,6 +403,7 @@ function renderLer(){
       <div class="samples">${amostras}</div></details>
   </div>`;
   $('#bVivo').onclick=vivo;
+  if(SCAN) $('#bScan').onclick=lerNativo;
   $('#fManual').onsubmit=e=>{ e.preventDefault(); achou($('#code').value); };
   document.querySelectorAll('.sample').forEach(b=>b.onclick=()=>achou(b.dataset.code));
   if(resultado) mostrarResultado(resultado.it, resultado.code);
@@ -414,6 +416,30 @@ function zxingReader(){
   hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A]);
   hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
   return new ZXing.BrowserMultiFormatReader(hints);
+}
+/* leitor nativo do Google (ML Kit) no APK */
+function instalarLeitor(){
+  return new Promise((res,rej)=>{
+    let h=null; const fim=(ok)=>{ clearTimeout(t); if(h) h.remove(); ok?res():rej(new Error('instalacao')); };
+    const t=setTimeout(()=>fim(false),90000);
+    SCAN.addListener('googleBarcodeScannerModuleInstallProgress',e=>{ if(e.state===4) fim(true); else if(e.state===5) fim(false); }).then(x=>h=x);
+    SCAN.installGoogleBarcodeScannerModule().catch(()=>fim(false));
+  });
+}
+async function lerNativo(){
+  try{
+    const av=await SCAN.isGoogleBarcodeScannerModuleAvailable();
+    if(!av.available){ msgScan('Preparando o leitor pela primeira vez. Precisa de internet só agora, um momento...'); await instalarLeitor(); }
+    msgScan('');
+    const r=await SCAN.scan({formats:['EAN_13','EAN_8','UPC_A','UPC_E'],autoZoom:true});
+    const b=r.barcodes&&r.barcodes[0];
+    if(b) achou(b.rawValue||b.displayValue); else msgScan('Nenhum código lido. Tente de novo.','warn');
+  }catch(e){
+    const m=String((e&&e.message)||e);
+    if(/cancel/i.test(m)){ msgScan(''); return; }
+    if(m==='instalacao'){ msgScan('Não consegui baixar o leitor. Ligue a internet e tente de novo, ou digite o número embaixo das barras.','bad'); return; }
+    msgScan('Não consegui abrir o leitor. Digite o número que fica embaixo das barras.','bad'); console.warn(e);
+  }
 }
 async function lerImagem(file){
   msgScan('Lendo o código da foto...');

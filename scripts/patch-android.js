@@ -1,5 +1,5 @@
 // Ajusta o projeto Android gerado pelo Capacitor:
-// permissão de câmera, ícone da notificação e consulta ao motor de voz.
+// permissão de câmera, leitor de código de barras, ícone da notificação e motor de voz.
 const fs = require('fs'), path = require('path');
 const res = path.join(__dirname, '..', 'android', 'app', 'src', 'main');
 const manifestPath = path.join(res, 'AndroidManifest.xml');
@@ -17,6 +17,10 @@ for (const p of perms) {
 if (!m.includes('android.hardware.camera')) m = m.replace('</manifest>', '    <uses-feature android:name="android.hardware.camera" android:required="false" />\n</manifest>');
 if (!m.includes('android.intent.action.TTS_SERVICE')) {
   m = m.replace('</manifest>', '    <queries>\n        <intent>\n            <action android:name="android.intent.action.TTS_SERVICE" />\n        </intent>\n    </queries>\n</manifest>');
+}
+// baixa o leitor de código de barras do Google junto com a instalação do app
+if (!m.includes('com.google.mlkit.vision.DEPENDENCIES')) {
+  m = m.replace('</application>', '        <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode_ui" />\n    </application>');
 }
 fs.writeFileSync(manifestPath, m);
 // ícone simples (pílula) para a barra de notificação
