@@ -182,6 +182,7 @@ button.dose:first-child{border-top:0}
 .outro{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .outro input{min-height:52px;padding:8px 12px;border-radius:12px;border:2px solid var(--line);background:var(--surface)}
 .stack{display:flex;flex-direction:column;gap:8px}
+.autor{font-size:.8rem;color:var(--muted);text-align:center;margin-top:4px}
 footer{font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;gap:6px}
 </style>
 </head>
@@ -205,6 +206,7 @@ footer{font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;ga
   <footer>
     <p>Códigos de barras: lista de preços CMED/Anvisa de 23/09/2026, com <span id="nCodes">…</span> códigos. Explicação geral para todos e completa para 10 remédios de pressão e diabetes.</p>
     <p>Textos de demonstração, ainda sem revisão de farmacêutico. O app não muda dose e não substitui o médico.</p>
+    <p class="autor">Remédio Falado · Criado por Guilherme · Análise e Desenvolvimento de Sistemas · CESAR School, Recife · © 2026. Todos os direitos reservados.</p>
   </footer>
 </div>
 
@@ -849,7 +851,8 @@ function renderBV(){
     <h2 id="bvT">Olá! Eu sou o Remédio Falado</h2>
     <p>Eu leio a caixa do remédio, <b>falo para que serve</b> e <b>lembro a hora de tomar</b>.</p>
     <button class="btn btn-pill" id="bvComecar" type="button">Começar</button>${ouvir}
-    <button class="btn btn-ghost" id="bvDemo" type="button">Ver demonstração</button>`;
+    <button class="btn btn-ghost" id="bvDemo" type="button">Ver demonstração</button>
+    <p class="autor">Criado por Guilherme · CESAR School · © 2026</p>`;
   if(passo===1) h=`${dots}<h2 id="bvT">Qual é o seu nome?</h2>
     <input class="bv-in" id="bvNome" placeholder="Seu nome" autocomplete="given-name" value="${esc(S.pessoa)}">
     <button class="btn btn-pill" id="bvOk" type="button">Continuar</button>${ouvir}<button class="linkbtn bv-pular" id="bvPular" type="button">Pular</button>`;

@@ -32,6 +32,10 @@ scripts/              cópia de bibliotecas e ajustes do Android
 
 Protótipo acadêmico. Os textos simplificados ainda precisam de revisão de farmacêutico. O app não muda dose e não substitui o médico. Os códigos de barras vêm da lista de preços CMED/Anvisa, que pode conter erros e é atualizada todo mês.
 
+## Licença
+
+Todos os direitos reservados. Veja o arquivo `LICENSE`.
+
 ## Autor
 
 Guilherme, Análise e Desenvolvimento de Sistemas, CESAR School (Recife).
