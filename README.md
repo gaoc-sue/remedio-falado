@@ -10,7 +10,7 @@ App Android para idosos com baixa visão ou pouca leitura. A pessoa aponta o cel
 - **Conferir caixa:** na hora da dose, a câmera confirma se é o remédio certo.
 - **Onde pegar de graça:** mostra quais remédios da pessoa são gratuitos na Farmácia Popular, o que levar, as 52 farmácias credenciadas do Recife por bairro (com mapa) e uma frase pronta para ligar antes de ir.
 - **Toque para ouvir:** tocar num remédio da lista ou da agenda fala de novo para que serve.
-- **Família:** tela que simula as mensagens de confirmação, alerta e resumo semanal.
+- **Família e WhatsApp:** depois do TOMEI, o app oferece avisar o familiar no WhatsApp com a mensagem pronta. A tela Família mostra confirmações, alertas e resumo semanal, cada um com botão para enviar no WhatsApp.
 
 ## Tecnologias
 
