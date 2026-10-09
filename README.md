@@ -8,6 +8,8 @@ App Android para idosos com baixa visão ou pouca leitura. A pessoa aponta o cel
 - **Explicação em voz alta**, em português simples, para 10 remédios de pressão e diabetes: losartana, captopril, enalapril, hidroclorotiazida, atenolol, propranolol, anlodipino, espironolactona, metformina e glibenclamida. Para os demais, fala o nome e a dose.
 - **Agenda e alarme:** o familiar cadastra os horários e o Android avisa na hora, mesmo com o app fechado. A pessoa aperta TOMEI.
 - **Conferir caixa:** na hora da dose, a câmera confirma se é o remédio certo.
+- **Onde pegar de graça:** mostra quais remédios da pessoa são gratuitos na Farmácia Popular, o que levar, as 52 farmácias credenciadas do Recife por bairro (com mapa) e uma frase pronta para ligar antes de ir.
+- **Toque para ouvir:** tocar num remédio da lista ou da agenda fala de novo para que serve.
 - **Família:** tela que simula as mensagens de confirmação, alerta e resumo semanal.
 
 ## Tecnologias
@@ -19,6 +21,7 @@ HTML, CSS e JavaScript, empacotados como app Android com [Capacitor](https://cap
 ```
 www/index.html        app (telas, leitura, voz, agenda)
 www/base.json         lista CMED/Anvisa compactada (23/09/2026)
+www/farmacias.json    farmácias credenciadas da Farmácia Popular no Recife
 scripts/              cópia de bibliotecas e ajustes do Android
 .github/workflows/    geração automática do APK
 ```
