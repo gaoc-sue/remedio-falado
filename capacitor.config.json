@@ -1,0 +1,14 @@
+{
+  "appId": "br.com.remediofalado.app",
+  "appName": "Remédio Falado",
+  "webDir": "www",
+  "android": {
+    "adjustMarginsForEdgeToEdge": "auto"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon",
+      "iconColor": "#0B6B5E"
+    }
+  }
+}
