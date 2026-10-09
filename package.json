@@ -8,6 +8,7 @@
     "android:prepare": "node scripts/copy-libs.js && npx cap add android && node scripts/patch-android.js && npx cap sync android"
   },
   "dependencies": {
+    "@capacitor-community/contacts": "7.2.0",
     "@capacitor-community/text-to-speech": "6.1.0",
     "@capacitor-mlkit/barcode-scanning": "7.5.0",
     "@capacitor/android": "7.6.9",
