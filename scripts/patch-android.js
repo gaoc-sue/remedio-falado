@@ -31,4 +31,22 @@ fs.writeFileSync(path.join(draw, 'ic_stat_icon.xml'),
   <path android:fillColor="#FFFFFFFF" android:pathData="M8,6h8a6,6 0,0 1,0 12h-8a6,6 0,0 1,0 -12zM8,8a4,4 0,0 0,0 8h3v-8z"/>
 </vector>
 `);
+// assinatura fixa: assim cada APK novo instala por cima do anterior, sem apagar os dados
+const gradlePath = path.join(__dirname, '..', 'android', 'app', 'build.gradle');
+let g = fs.readFileSync(gradlePath, 'utf8');
+if (!g.includes('remedio-falado-teste.jks')) {
+  g = g.replace(/android \{/, `android {
+    signingConfigs {
+        debug {
+            storeFile file("../../keystore/remedio-falado-teste.jks")
+            storePassword "remediofalado"
+            keyAlias "remediofalado"
+            keyPassword "remediofalado"
+        }
+    }`);
+}
+// número da versão sobe a cada compilação no GitHub
+const run = parseInt(process.env.GITHUB_RUN_NUMBER || '1', 10);
+g = g.replace(/versionCode \d+/, 'versionCode ' + run).replace(/versionName "[^"]*"/, 'versionName "1.0.' + run + '"');
+fs.writeFileSync(gradlePath, g);
 console.log('Android ajustado: permissões, ícone de notificação e voz.');
