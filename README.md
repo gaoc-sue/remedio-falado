@@ -5,7 +5,9 @@ App Android para idosos com baixa visão ou pouca leitura. A pessoa aponta o cel
 ## O que o app faz
 
 - **Que remédio é este?** Lê o código de barras da caixa (foto ou câmera ao vivo) e consulta a lista oficial de preços da CMED/Anvisa, com mais de 27 mil códigos, sem precisar de internet.
-- **Explicação em voz alta**, em português simples, para 10 remédios de pressão e diabetes: losartana, captopril, enalapril, hidroclorotiazida, atenolol, propranolol, anlodipino, espironolactona, metformina e glibenclamida. Para os demais, fala o nome e a dose.
+- **Explicação em voz alta**, em português simples. Todo remédio da lista ganha uma frase geral de "para que serve", a partir da classe terapêutica da Anvisa (`scripts/grupos.py`, revisável). Os 10 de pressão e diabetes têm texto completo: losartana, captopril, enalapril, hidroclorotiazida, atenolol, propranolol, anlodipino, espironolactona, metformina e glibenclamida.
+- **Ler e colocar na agenda:** depois de ler a caixa, o botão "Colocar na minha agenda" pede só quanto tomar e os horários (Manhã, Almoço, Noite), com botões grandes e sem digitação.
+- **Boas-vindas:** no primeiro uso, o app pergunta o nome e quem da família recebe os avisos. A opção "Ver demonstração" abre com dados de exemplo.
 - **Agenda e alarme:** o familiar cadastra os horários e o Android avisa na hora, mesmo com o app fechado. A pessoa aperta TOMEI.
 - **Conferir caixa:** na hora da dose, a câmera confirma se é o remédio certo.
 - **Onde pegar de graça:** mostra quais remédios da pessoa são gratuitos na Farmácia Popular, o que levar, as 52 farmácias credenciadas do Recife por bairro (com mapa) e uma frase pronta para ligar antes de ir.

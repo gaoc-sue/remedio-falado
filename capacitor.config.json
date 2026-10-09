@@ -3,12 +3,16 @@
   "appName": "Remédio Falado",
   "webDir": "www",
   "android": {
-    "adjustMarginsForEdgeToEdge": "auto"
+    "adjustMarginsForEdgeToEdge": "auto",
+    "minWebViewVersion": 60
   },
   "plugins": {
     "LocalNotifications": {
       "smallIcon": "ic_stat_icon",
       "iconColor": "#0B6B5E"
     }
+  },
+  "server": {
+    "errorPath": "webview-antiga.html"
   }
 }

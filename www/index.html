@@ -162,6 +162,25 @@ button.dose:first-child{border-top:0}
 .btn-wa{background:#1F8F4E;color:#FFFFFF}
 .wa-mini{background:none;border:0;color:var(--ok);font-weight:700;font-size:.85rem;padding:6px 0 0;cursor:pointer;display:block}
 .wa-bar{background:var(--ok-soft);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.bv{position:fixed;inset:0;z-index:9;background:var(--bg);overflow-y:auto;padding:calc(24px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px))}
+.bv-in-wrap{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:16px;min-height:100%;justify-content:center}
+.bv h2{font-size:1.9rem}
+.bv p{font-size:1.2rem}
+.bv-logo svg{width:96px;height:96px}
+.bv-in{min-height:64px;padding:12px 16px;border-radius:14px;border:2px solid var(--line);background:var(--surface);font-size:1.25rem;width:100%}
+.bv-pular{color:var(--muted);text-align:center;font-size:1.05rem;padding:12px}
+.bv-dots{display:flex;gap:8px}
+.bv-dots i{width:36px;height:8px;border-radius:4px;background:var(--line)}
+.bv-dots i.on{background:var(--accent)}
+.addag{display:flex;flex-direction:column;gap:12px;background:var(--sunk);border-radius:var(--r);padding:14px}
+.opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.opt b{font-size:1.35rem;line-height:1.1}
+.opt{min-height:64px;border-radius:14px;border:2px solid var(--line);background:var(--surface);font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px;text-align:center;font-size:1rem}
+.opt small{font-weight:400;color:var(--muted);font-size:.85rem}
+.opt[aria-pressed="true"]{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.opt[aria-pressed="true"] small{color:var(--accent-ink)}
+.outro{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.outro input{min-height:52px;padding:8px 12px;border-radius:12px;border:2px solid var(--line);background:var(--surface)}
 footer{font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;gap:6px}
 </style>
 </head>
@@ -183,7 +202,7 @@ footer{font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;ga
   <section id="view-gratis" class="view" aria-label="Onde pegar de graça" hidden></section>
 
   <footer>
-    <p>Códigos de barras: lista de preços CMED/Anvisa de 23/09/2026, com <span id="nCodes">…</span> códigos. Explicação simples para 10 remédios de pressão e diabetes.</p>
+    <p>Códigos de barras: lista de preços CMED/Anvisa de 23/09/2026, com <span id="nCodes">…</span> códigos. Explicação geral para todos e completa para 10 remédios de pressão e diabetes.</p>
     <p>Textos de demonstração, ainda sem revisão de farmacêutico. O app não muda dose e não substitui o médico.</p>
   </footer>
 </div>
@@ -198,10 +217,17 @@ footer{font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;ga
   </div>
 </nav>
 
+<div class="bv" id="bv" hidden role="dialog" aria-modal="true" aria-label="Boas-vindas"></div>
 <div class="alarm" id="alarm" hidden role="alertdialog" aria-labelledby="alarmTitle"></div>
 <div class="toast" id="toast" hidden role="status"></div>
 <input type="file" id="photo" accept="image/*" capture="environment" hidden>
 
+<div id="erroBox" hidden style="position:fixed;top:8px;left:8px;right:8px;z-index:50;padding:14px;border-radius:12px;background:#FBE1DE;color:#5A1410;font-size:15px;word-break:break-word"></div>
+<script>
+/* mostra qualquer erro na tela, para facilitar o print */
+window.onerror=function(msg,src,linha){ var b=document.getElementById('erroBox'); if(!b) return; b.hidden=false;
+  b.innerHTML='<b>Algo deu errado.</b> Tire um print e mande para quem enviou o app.<br><small>'+String(msg).replace(/</g,'&lt;')+' (linha '+linha+') · '+navigator.userAgent.replace(/</g,'&lt;')+'</small>'; };
+</script>
 <script src="lib/zxing.min.js"></script>
 <script>
 (function(){
@@ -268,13 +294,29 @@ function listaFala(arr){ return arr.length<2? arr.join('') : arr.slice(0,-1).joi
 function titulo(s){ return s.toLowerCase().replace(/(^|\s)\S/g, c=>c.toUpperCase()); }
 
 const GENERICO_COR='#8A8F8C';
+const PALETA=['#2F6FDB','#D97706','#15803D','#B83280','#0891B2','#7A4FD0','#C2410C','#65A30D'];
+const cap = s => s ? s[0].toUpperCase()+s.slice(1) : '';
+function nomeSub(s){ const small={de:1,da:1,do:1,das:1,dos:1,e:1}; return String(s).toLowerCase().split(';').map(p=>p.trim().split(/\s+/).map((w,i)=>i&&small[w]?w:cap(w)).join(' ')).join(' + '); }
+/* remédio de um item da agenda: os 10 com texto próprio ou qualquer um lido da caixa */
+function med(a){
+  if(a && a.nome) return {nome:a.nome,apelido:a.apelido||'remédio',cor:a.cor||GENERICO_COR,serve:a.serve||'',cuidado:a.cuidado||''};
+  return (a && INFO[a.principio]) || {nome:'Remédio',apelido:'remédio',cor:GENERICO_COR,serve:'',cuidado:''};
+}
+const chaveAg = a => a.chave || a.principio;
+const chaveIt = it => it.principio || ('sub:'+it.substancia);
+function dotA(a){ return `<span class="dot" style="background:${med(a).cor}" aria-hidden="true"></span>`; }
+const nomeP = () => S.pessoa || 'Seu familiar';
+const vocativo = () => S.pessoa ? S.pessoa+', ' : '';
+const nomeFam = () => S.familiar || 'a família';
 function item(idx){
-  const [si,produto,apres,li,registro,principio,hosp,tarja] = ITENS[idx];
+  const [si,produto,apres,li,registro,principio,hosp,tarja,gi] = ITENS[idx];
+  const g = (BASE.grupos && gi>=0) ? BASE.grupos[gi] : null;
   const lab = BASE.laboratorios[li]||'', substancia = BASE.substancias[si]||'';
   const dose = (apres.match(/^([\d.,]+\s*(MG|G|MCG))/i)||['',''])[1].replace(/\s*MG/i,' mg').replace(/\s*MCG/i,' mcg');
   const qtd = (apres.match(/X\s*(\d+)\s*$/i)||[])[1];
-  return {idx,principio,produto:titulo(produto),apres,lab:titulo(lab.replace(/\s+(LTDA|S\/?A|S\.A\.?)\.?$/i,'')),registro,dose,qtd,tarja,hosp,substancia:titulo(substancia),
-    info: INFO[principio] || {generico:true,nome:titulo(substancia),apelido:titulo(produto),cor:GENERICO_COR,serve:'',cuidado:''}};
+  return {idx,principio,produto:titulo(produto),apres,lab:titulo(lab.replace(/\s+(LTDA|S\/?A|S\.A\.?)\.?$/i,'')),registro,dose,qtd,tarja,hosp,substancia:nomeSub(substancia),
+    info: INFO[principio] || {geral:true,nome:nomeSub(substancia),apelido:g?g[0]:titulo(produto),cor:GENERICO_COR,serve:g?g[1]:'',
+      cuidado:(g&&g[2]?g[2]+' ':'')+(/preta/i.test(tarja)?'Tem tarja preta: precisa de receita especial e cuidado redobrado. ':'')+'Tome do jeito que o médico mandou. Não pare nem mude a dose sozinho.'}};
 }
 function buscar(code){
   let c = String(code).replace(/\D/g,'');
@@ -300,10 +342,14 @@ function seed(){
       if(!miss) log.push({dia:k,ag:a.id,h,em:h,ok:true});
     }));
   }
-  return {pessoa:'Dona Lúcia',familiar:'Carla (filha)',agenda,log,feed:[],tocados:{}};
+  return {pessoa:'Dona Lúcia',familiar:'Carla (filha)',agenda,log,feed:[],tocados:{},demo:true};
 }
-let S;
-try{ S=JSON.parse(localStorage.getItem(KEY)) || seed(); }catch(e){ S=seed(); }
+function novo(){ return {pessoa:'',familiar:'',whats:'',agenda:[],log:[],feed:[],tocados:{},demo:false}; }
+let S=null;
+try{ S=JSON.parse(localStorage.getItem(KEY)); }catch(e){ S=null; }
+const primeiroUso = !S;
+if(!S) S=novo();
+if(S.demo===undefined) S.demo = S.pessoa==='Dona Lúcia';
 function save(){ try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} }
 /* alarmes de verdade no Android: uma notificação diária por horário da agenda */
 async function agendarAlarmes(pedir){
@@ -314,7 +360,7 @@ async function agendarAlarmes(pedir){
     if(p.display!=='granted') return;
     const pend=await NOTIF.getPending(); if(pend.notifications.length) await NOTIF.cancel({notifications:pend.notifications.map(n=>({id:n.id}))});
     const lista=[]; let id=1;
-    S.agenda.forEach(a=>a.horarios.forEach(h=>{ const [hh,mm]=h.split(':').map(Number); const i=INFO[a.principio];
+    S.agenda.forEach(a=>a.horarios.forEach(h=>{ const [hh,mm]=h.split(':').map(Number); const i=med(a);
       lista.push({id:id++,title:'Hora do '+i.apelido,body:`${i.nome} ${a.dose} · ${a.como}. Toque para confirmar.`,
         schedule:{on:{hour:hh,minute:mm},allowWhileIdle:true},extra:{ag:a.id,h}}); }));
     if(lista.length) await NOTIF.schedule({notifications:lista});
@@ -326,7 +372,8 @@ if(NOTIF){
   NOTIF.addListener('localNotificationReceived',ev=>{ const x=ev.notification&&ev.notification.extra; if(!x) return;
     const a=S.agenda.find(q=>q.id===x.ag); const k=dayKey(new Date())+x.ag+x.h; if(a && $('#alarm').hidden && !S.tocados[k]){ S.tocados[k]=1; save(); abrirAlarme({a,h:x.h}); } });
 }
-$('#who').textContent = 'Exemplo: '+S.pessoa+', 68 anos, Recife';
+function topo(){ $('#who').textContent = S.demo ? 'Demonstração: Dona Lúcia, 68 anos, Recife' : (S.pessoa ? 'Olá, '+S.pessoa : 'Seu remédio, falado'); }
+topo();
 
 /* ---------- voz ---------- */
 let voz=null;
@@ -340,8 +387,11 @@ function falar(t){
   const u=new SpeechSynthesisUtterance(t); u.lang='pt-BR'; u.rate=.88; if(voz) u.voice=voz;
   speechSynthesis.speak(u);
 }
-function explicar(p){ const i=INFO[p]; if(!i) return;
-  falar(`${i.nome}. É o ${i.apelido}. Para que serve: ${i.serve} Cuidado: ${i.cuidado}`); }
+function explicar(v){
+  let i=null;
+  if(String(v).startsWith('ag:')){ const a=S.agenda.find(q=>q.id===v.slice(3)); if(a) i=med(a); } else i=INFO[v];
+  if(!i) return;
+  falar(`${i.nome}. É o ${i.apelido}.${i.serve?' Para que serve: '+i.serve:''}${i.cuidado?' Cuidado: '+i.cuidado:''}`); }
 document.addEventListener('click',e=>{ const b=e.target.closest('[data-fala]'); if(b) explicar(b.dataset.fala); });
 function calar(){ if(TTS) TTS.stop().catch(()=>{}); else if('speechSynthesis' in window) speechSynthesis.cancel(); }
 let tt; function toast(t){ const el=$('#toast'); el.textContent=t; el.hidden=false; clearTimeout(tt); tt=setTimeout(()=>el.hidden=true,3200); }
@@ -366,8 +416,8 @@ function tomar(a,h,via){
   if(S.log.some(l=>l.dia===k&&l.ag===a.id&&l.h===h)) return;
   const em=nowHM();
   S.log.push({dia:k,ag:a.id,h,em,ok:true});
-  S.feed.push({t:'ok',em,txt:`${S.pessoa} tomou ${INFO[a.principio].nome} ${a.dose} (dose das ${h})${via==='caixa'?', conferido pela caixa':''}.`});
-  save(); falar('Muito bem. Anotei que a senhora tomou o '+INFO[a.principio].apelido+'.');
+  S.feed.push({t:'ok',em,txt:`${nomeP()} tomou ${med(a).nome} ${a.dose} (dose das ${h})${via==='caixa'?', conferido pela caixa':''}.`});
+  save(); falar('Muito bem. Anotei que você tomou o '+med(a).apelido+'.');
   S.aviso={dia:k,txt:S.feed[S.feed.length-1].txt};
   save(); toast('Anotado.'); render();
 }
@@ -377,31 +427,33 @@ function renderHoje(){
   const ds=dosesHoje(), f=doseFoco(ds);
   let foco='';
   if(f){
-    const i=INFO[f.a.principio];
+    const i=med(f.a);
     foco=`<div class="now ${f.st==='late'?'late':''}">
       <div class="now-head"><span class="hour">${f.h}</span><span class="state ${STL[f.st][1]}">${STL[f.st][0]}</span></div>
-      <div><button class="fala medname" data-fala="${f.a.principio}">${dot(f.a.principio)}${esc(i.apelido[0].toUpperCase()+i.apelido.slice(1))}</button>
+      <div><button class="fala medname" data-fala="ag:${f.a.id}">${dotA(f.a)}${esc(cap(i.apelido))}</button>
       <p class="muted">${esc(i.nome)} ${esc(f.a.dose)} · ${esc(f.a.como)}</p></div>
       <button class="btn btn-ok" id="bTomei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg>TOMEI</button>
       <div class="btn-row">
         <button class="btn btn-ghost" id="bOuvirDose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6"/></svg>Ouvir</button>
         <button class="btn btn-ghost" id="bConferir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3M8 8v8M12 8v8M16 8v8"/></svg>Conferir caixa</button>
       </div></div>`;
-  } else foco=`<div class="now"><h2>Tudo certo por hoje</h2><p class="muted">Nenhum remédio cadastrado na agenda.</p></div>`;
-  const lista=ds.map(d=>`<button class="dose" data-fala="${d.a.principio}" aria-label="Ouvir para que serve ${esc(INFO[d.a.principio].nome)}"><span class="t">${d.h}</span><span class="n">${dot(d.a.principio)}<b style="display:inline">${esc(INFO[d.a.principio].nome)} ${esc(d.a.dose)}</b><br><span class="small muted">${esc(INFO[d.a.principio].apelido)}</span></span><span class="state ${STL[d.st][1]}">${STL[d.st][0]}</span></button>`).join('');
+  } else if(!S.agenda.length) foco=`<div class="now"><h2>Nenhum remédio na agenda ainda</h2><p class="muted">Leia a caixa do remédio e escolha os horários. Não precisa digitar nada.</p>
+      <button class="btn btn-main" data-go="ler" data-scan="1">Colocar meu primeiro remédio</button></div>`;
+  else foco=`<div class="now"><h2>Tudo certo por hoje</h2><p class="muted">Todos os remédios de hoje foram tomados.</p></div>`;
+  const lista=ds.map(d=>`<button class="dose" data-fala="ag:${d.a.id}" aria-label="Ouvir para que serve ${esc(med(d.a).nome)}"><span class="t">${d.h}</span><span class="n">${dotA(d.a)}<b style="display:inline">${esc(med(d.a).nome)} ${esc(d.a.dose)}</b><br><span class="small muted">${esc(med(d.a).apelido)}</span></span><span class="state ${STL[d.st][1]}">${STL[d.st][0]}</span></button>`).join('');
   $('#view-hoje').innerHTML=`<div class="wrap-in" style="display:flex;flex-direction:column;gap:18px">
-    ${S.aviso && S.aviso.dia===dayKey(new Date()) ? `<div class="wa-bar"><p><b>Avisar ${esc(S.familiar)}?</b><br><span class="small">${esc(S.aviso.txt)}</span></p>
+    ${S.aviso && S.aviso.dia===dayKey(new Date()) ? `<div class="wa-bar"><p><b>Avisar ${esc(nomeFam())}?</b><br><span class="small">${esc(S.aviso.txt)}</span></p>
       <div class="btn-row"><button class="btn btn-wa" id="bWaAviso">${WA_SVG}Avisar no WhatsApp</button><button class="btn btn-ghost" id="bWaNao">Agora não</button></div></div>` : ''}
     <p class="label">Próximo remédio</p>${foco}
-    <button class="btn btn-pill" data-go="ler"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3M8 8v8M12 8v8M16 8v8"/></svg>Que remédio é este?</button>
+    <button class="btn btn-pill" data-go="ler" data-scan="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3M8 8v8M12 8v8M16 8v8"/></svg>Que remédio é este?</button>
     <div><p class="label">Remédios de hoje</p><p class="hint" style="margin:2px 0 8px">Toque num remédio para ouvir para que serve.</p><div class="day">${lista||'<p style="padding:16px">Sem doses hoje.</p>'}</div></div>
     <button class="btn btn-ghost" id="bTeste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>Tocar lembrete de teste</button>
   </div>`;
   const bwa=$('#bWaAviso'); if(bwa){ bwa.onclick=()=>{ const t=S.aviso.txt; S.aviso=null; save(); renderHoje(); enviarWhats(t); }; $('#bWaNao').onclick=()=>{ S.aviso=null; save(); renderHoje(); }; }
   if(f){
     $('#bTomei').onclick=()=>tomar(f.a,f.h,'botao');
-    $('#bOuvirDose').onclick=()=>falar(`${S.pessoa}, ${f.st==='late'?'está atrasado o':'é hora do'} ${INFO[f.a.principio].apelido}. ${INFO[f.a.principio].nome}, ${f.a.como}. Quando tomar, aperte o botão verde: tomei.`);
-    $('#bConferir').onclick=()=>{ alvo=f; go('ler'); };
+    $('#bOuvirDose').onclick=()=>falar(`${vocativo()}${f.st==='late'?'está atrasado o':'é hora do'} ${med(f.a).apelido}. ${med(f.a).nome}, ${f.a.como}. Quando tomar, aperte o botão verde: tomei.`);
+    $('#bConferir').onclick=()=>{ alvo=f; go('ler'); if(SCAN) lerNativo(); };
   }
   $('#bTeste').onclick=()=>{ if(f) abrirAlarme(f); else toast('Cadastre um remédio na Agenda primeiro.'); };
 }
@@ -411,7 +463,7 @@ let alvo=null, resultado=null, lendo=false, reader=null;
 function renderLer(){
   const exemplos=['7891317427542','7897595631770','7891721027437','7896004706474'];
   const amostras=exemplos.map(c=>{ const it=buscar(c); return it?`<button class="sample" data-code="${c}">${ean13svg(c)}<span><b>${esc(it.produto)}</b><br><span class="small muted">${esc(it.dose)} · ${c}</span></span></button>`:''; }).join('');
-  const conf = alvo? `<div class="msg info">Conferindo a dose das ${alvo.h}: ${esc(INFO[alvo.a.principio].apelido)}. Mostre a caixa.</div>`:'';
+  const conf = alvo? `<div class="msg info">Conferindo a dose das ${alvo.h}: ${esc(med(alvo.a).apelido)}. Mostre a caixa.</div>`:'';
   $('#view-ler').innerHTML=`<div style="display:flex;flex-direction:column;gap:16px">
     <h2>Que remédio é este?</h2>${conf}
     <div id="resBox"></div>
@@ -502,53 +554,86 @@ async function achou(code){
     resultado=null; $('#resBox').innerHTML=`<div class="msg bad">Não reconheci este remédio (código ${esc(code)}). Peça ajuda ao farmacêutico ou a alguém da família.</div>`;
     msgScan(''); falar('Não reconheci este remédio. Peça ajuda ao farmacêutico ou a alguém da família.'); return;
   }
-  resultado={it,code}; mostrarResultado(it,code,true);
+  resultado={it,code}; addSel=null; mostrarResultado(it,code,true);
 }
-function agendaDe(p){ return S.agenda.find(a=>a.principio===p); }
+function agendaDe(ch){ return S.agenda.find(a=>chaveAg(a)===ch); }
 function textoFala(it){
-  const ag=agendaDe(it.principio), i=it.info;
-  if(i.generico) return `Este é o ${it.produto}, ${i.nome}${it.dose?', '+it.dose.replace('mg','miligramas'):''}. Ainda não tenho a explicação simples deste remédio. Peça ao farmacêutico para explicar como tomar.`;
+  const ag=agendaDe(chaveIt(it)), i=it.info;
+  const dose = it.dose ? ', '+it.dose.replace('mg','miligramas') : '';
   const como = ag? `Na sua agenda: ${ag.como}, às ${listaFala(ag.horarios.map(falaHora))}.` : 'Tome do jeito que o médico mandou. Este remédio ainda não está na sua agenda.';
-  return `Este é o ${i.apelido}. ${i.nome}, ${it.dose.replace('mg','miligramas')}. Para que serve: ${i.serve} Como tomar: ${como} Cuidado: ${i.cuidado}`;
+  return `Este é o ${i.apelido}. ${i.geral?it.produto+', '+i.nome:i.nome}${dose}.${i.serve?' Para que serve: '+i.serve:''} Como tomar: ${como} Cuidado: ${i.cuidado}`;
+}
+/* unidade do remédio pela apresentação da caixa */
+function unidade(apres){ const a=' '+apres.toUpperCase()+' ';
+  if(/\bCAP\b|CAPS/.test(a)) return ['cápsula','cápsulas'];
+  if(/\bCOM\b|COMP/.test(a)) return ['comprimido','comprimidos'];
+  if(/\bGOT\b|GTS|GOTAS/.test(a)) return ['gota','gotas'];
+  if(/XPE|SUS OR|SOL OR/.test(a)) return ['medida','medidas'];
+  return ['dose','doses']; }
+let addSel=null;
+function formAgenda(it){
+  const u=unidade(it.apres), ja=agendaDe(chaveIt(it));
+  if(ja) return `<div class="msg ok">Este remédio já está na sua agenda: ${esc(ja.como)}, às ${ja.horarios.join(' e ')}.</div>`;
+  if(!addSel) return `<button class="btn btn-pill" id="bAddAg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5"/></svg>Colocar na minha agenda</button>`;
+  const qs=[['1','1',u[0]],['2','2',u[1]],['meio','Meio',u[0]]];
+  const hs=[['08:00','Manhã','8h'],['12:00','Almoço','12h'],['20:00','Noite','20h']];
+  return `<div class="addag" id="addag">
+    <p class="label">Quanto tomar de cada vez?</p>
+    <div class="opts">${qs.map(([k,t,un])=>`<button type="button" class="opt" data-q="${k}" aria-pressed="${addSel.q===k}" aria-label="${esc(t+' '+un)}"><b>${esc(t)}</b><small>${esc(un)}</small></button>`).join('')}</div>
+    <p class="label">Em que horários? Pode marcar mais de um</p>
+    <div class="opts">${hs.map(([h,t,c])=>`<button type="button" class="opt" data-h="${h}" aria-pressed="${addSel.h.includes(h)}"><b>${c}</b><small>${t}</small></button>`).join('')}</div>
+    <div class="outro"><label for="hOutro">Outro horário</label><input type="time" id="hOutro" value="${addSel.outro||''}"></div>
+    <button class="btn btn-ok" id="bSalvarAg">Salvar na agenda</button>
+    <button class="btn btn-ghost" id="bCancelAg">Cancelar</button>
+  </div>`;
+}
+function ligarFormAgenda(it){
+  const b=$('#bAddAg'); if(b) b.onclick=()=>{ addSel={q:'1',h:['08:00'],outro:''}; mostrarResultado(it,resultado.code); falar('Quanto tomar de cada vez? E em que horários? Toque nos botões.'); const f=$('#addag'); if(f) f.scrollIntoView({behavior:'smooth',block:'center'}); };
+  if(!$('#addag')) return;
+  document.querySelectorAll('#addag [data-q]').forEach(x=>x.onclick=()=>{ addSel.q=x.dataset.q; mostrarResultado(it,resultado.code); });
+  document.querySelectorAll('#addag [data-h]').forEach(x=>x.onclick=()=>{ const h=x.dataset.h; addSel.h=addSel.h.includes(h)?addSel.h.filter(y=>y!==h):addSel.h.concat(h); mostrarResultado(it,resultado.code); });
+  $('#hOutro').onchange=e=>{ addSel.outro=e.target.value; };
+  $('#bCancelAg').onclick=()=>{ addSel=null; mostrarResultado(it,resultado.code); };
+  $('#bSalvarAg').onclick=()=>{
+    const hs=[...new Set(addSel.h.concat(addSel.outro?[addSel.outro]:[]))].sort();
+    if(!hs.length){ toast('Escolha pelo menos um horário.'); falar('Escolha pelo menos um horário.'); return; }
+    const u=unidade(it.apres), como = addSel.q==='meio' ? 'meio '+u[0] : addSel.q==='2' ? '2 '+u[1] : '1 '+u[0];
+    const i=it.info;
+    S.agenda.push({id:'a'+Date.now(),chave:chaveIt(it),principio:it.principio||'',nome:i.nome,apelido:i.apelido,
+      cor: INFO[it.principio] ? INFO[it.principio].cor : PALETA[S.agenda.length%PALETA.length],
+      serve:i.serve,cuidado:i.cuidado,dose:it.dose||'',como,horarios:hs,produto:it.produto});
+    save(); agendarAlarmes(true); addSel=null; resultado=null;
+    falar(`Pronto. Vou lembrar o ${i.apelido} às ${listaFala(hs.map(falaHora))}.`);
+    toast('Salvo na agenda.'); go('hoje');
+  };
 }
 function mostrarResultado(it,code,falarAgora){
-  const i=it.info, ag=agendaDe(it.principio);
-  if(i.generico){
-    $('#resBox').innerHTML=`<article class="result" aria-live="polite">
-      ${alvo?`<div class="msg bad">Atenção: este NÃO é o remédio das ${alvo.h}. Agora é o ${esc(INFO[alvo.a.principio].apelido)} (${esc(INFO[alvo.a.principio].nome)}).</div>`:''}
-      <div><p class="label">${dot('')}Este é o</p><div class="big-name">${esc(it.produto)}</div>
-      <p class="prod">${esc(i.nome)}${it.dose?' · '+esc(it.dose):''}${it.qtd?' · '+it.qtd+' unidades':''} · ${esc(it.lab)}</p></div>
-      <button class="btn btn-main" id="bOuvir">Ouvir de novo</button>
-      <div class="warnbox block"><p class="label">Explicação simples</p><p>Ainda não tenho a explicação simples deste remédio. Peça ao farmacêutico para explicar como tomar.</p></div>
-      <p class="fine">${esc(it.apres)}${it.tarja&&it.tarja.startsWith('Tarja')?' · '+esc(it.tarja):''}${it.hosp?' · uso hospitalar':''}<br>Código ${esc(code)} · Registro Anvisa ${esc(it.registro)}</p>
-    </article>`;
-    $('#bOuvir').onclick=()=>falar(textoFala(it)); msgScan('');
-    if(falarAgora){ falar((alvo?'Atenção, este não é o remédio da hora. ':'')+textoFala(it)); $('#resBox').scrollIntoView({behavior:'smooth',block:'start'}); }
-    return;
-  }
+  const i=it.info, ag=agendaDe(chaveIt(it));
   let conf='';
   if(alvo){
-    conf = alvo.a.principio===it.principio
+    conf = chaveAg(alvo.a)===chaveIt(it)
       ? `<div class="msg ok">É este mesmo. Pode tomar o remédio das ${alvo.h}.</div><button class="btn btn-ok" id="bTomeiCx"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg>TOMEI</button>`
-      : `<div class="msg bad">Atenção: este NÃO é o remédio das ${alvo.h}. Agora é o ${esc(INFO[alvo.a.principio].apelido)} (${esc(INFO[alvo.a.principio].nome)}).</div>`;
+      : `<div class="msg bad">Atenção: este NÃO é o remédio das ${alvo.h}. Agora é o ${esc(med(alvo.a).apelido)} (${esc(med(alvo.a).nome)}).</div>`;
   }
   $('#resBox').innerHTML=`<article class="result" aria-live="polite">
     ${conf}
-    <div><p class="label">${dot(it.principio)}Este é o</p><div class="big-name">${esc(i.apelido[0].toUpperCase()+i.apelido.slice(1))}</div>
-    <p class="prod">${esc(it.produto)} · ${esc(i.nome)} ${esc(it.dose)}${it.qtd?' · '+it.qtd+' comprimidos':''} · ${esc(it.lab)}</p></div>
+    <div><p class="label"><span class="dot" style="background:${i.cor}" aria-hidden="true"></span>Este é o</p><div class="big-name">${esc(cap(i.apelido))}</div>
+    <p class="prod">${esc(it.produto)} · ${esc(i.nome)}${it.dose?' '+esc(it.dose):''}${it.qtd?' · '+it.qtd+' '+unidade(it.apres)[1]:''} · ${esc(it.lab)}</p></div>
     <button class="btn btn-main" id="bOuvir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>Ouvir de novo</button>
-    <div class="block"><p class="label">Para que serve</p><p>${esc(i.serve)}</p></div>
-    <div class="block"><p class="label">Como tomar</p><p>${ag? `${esc(ag.como)}, às ${ag.horarios.join(' e ')}.` : 'Do jeito que o médico mandou. Ainda não está na agenda.'}</p></div>
+    ${alvo?'':formAgenda(it)}
+    ${i.serve?`<div class="block"><p class="label">Para que serve</p><p>${esc(i.serve)}</p></div>`:''}
+    <div class="block"><p class="label">Como tomar</p><p>${ag? `${esc(ag.como)}, às ${ag.horarios.join(' e ')}.` : 'Do jeito que o médico mandou.'}</p></div>
     <div class="warnbox block"><p class="label">Cuidado</p><p>${esc(i.cuidado)}</p></div>
-    <p class="fine">Código ${esc(code)} · Registro Anvisa ${esc(it.registro)}</p>
+    <p class="fine">${i.geral?'Explicação geral para este tipo de remédio. Confirme com o farmacêutico. ':''}${it.hosp?'Uso hospitalar. ':''}Código ${esc(code)} · Registro Anvisa ${esc(it.registro)}</p>
   </article>`;
   $('#bOuvir').onclick=()=>falar(textoFala(it));
   const bt=$('#bTomeiCx'); if(bt){ const a=alvo; bt.onclick=()=>{ tomar(a.a,a.h,'caixa'); alvo=null; resultado=null; go('hoje'); }; }
+  if(!alvo) ligarFormAgenda(it);
   msgScan('');
   if(falarAgora){
     let pre='';
-    if(alvo) pre = alvo.a.principio===it.principio ? 'É este mesmo. Pode tomar. ' : 'Atenção, este não é o remédio da hora. ';
-    falar(pre+textoFala(it));
+    if(alvo) pre = chaveAg(alvo.a)===chaveIt(it) ? 'É este mesmo. Pode tomar. ' : 'Atenção, este não é o remédio da hora. ';
+    falar(pre+textoFala(it)+(!alvo&&!ag?' Se quiser, toque em colocar na minha agenda.':''));
     $('#resBox').scrollIntoView({behavior:'smooth',block:'start'});
   }
 }
@@ -556,24 +641,30 @@ function mostrarResultado(it,code,falarAgora){
 /* ---------- tela AGENDA ---------- */
 function renderAgenda(){
   const itens=S.agenda.map(a=>`<div class="agenda-item">
-    <div class="now-head"><h3><button class="fala" data-fala="${a.principio}">${dot(a.principio)}${esc(INFO[a.principio].nome)} ${esc(a.dose)}</button></h3><button class="linkbtn" data-del="${a.id}">Remover</button></div>
-    <p class="muted small">${esc(INFO[a.principio].apelido)} · ${esc(a.como)}</p>
+    <div class="now-head"><h3><button class="fala" data-fala="ag:${a.id}">${dotA(a)}${esc(med(a).nome)} ${esc(a.dose)}</button></h3><button class="linkbtn" data-del="${a.id}">Remover</button></div>
+    <p class="muted small">${esc(med(a).apelido)} · ${esc(a.como)}</p>
     <div class="chips">${a.horarios.map(h=>`<span class="chip">${h}</span>`).join('')}</div></div>`).join('');
   const opts=Object.entries(INFO).map(([k,v])=>`<option value="${k}">${v.nome} (${v.apelido})</option>`).join('');
   $('#view-agenda').innerHTML=`<div style="display:flex;flex-direction:column;gap:16px">
-    <h2>Agenda de ${esc(S.pessoa)}</h2>
-    <p class="muted">Quem cadastra é o familiar ou o agente de saúde. A pessoa só ouve o lembrete e aperta TOMEI.</p>
+    <h2>${S.pessoa?'Agenda de '+esc(S.pessoa):'Minha agenda'}</h2>
+    <button class="btn btn-pill" data-go="ler" data-scan="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3M8 8v8M12 8v8M16 8v8"/></svg>Adicionar lendo a caixa</button>
     ${itens || '<p class="msg info">Nenhum remédio na agenda.</p>'}
-    <form class="form" id="fAg">
-      <h3>Adicionar remédio</h3>
+    <details class="demo"><summary>Adicionar sem a caixa</summary>
+    <form class="form" id="fAg" style="margin-top:12px;border:0;padding:0">
       <div class="field"><label class="label" for="agP">Remédio</label><select id="agP">${opts}</select></div>
       <div class="field"><label class="label" for="agD">Dose (como está na caixa)</label><input id="agD" placeholder="Ex.: 25 mg" required></div>
       <div class="field"><label class="label" for="agC">Como o médico mandou</label><input id="agC" placeholder="Ex.: 1 comprimido" required></div>
       <div class="field"><span class="label">Horários</span><div class="times">
         <input type="time" id="agH1" value="08:00" aria-label="Horário 1" required><input type="time" id="agH2" aria-label="Horário 2"><input type="time" id="agH3" aria-label="Horário 3"></div></div>
       <button class="btn btn-main" type="submit">Salvar na agenda</button>
-    </form>
-    <button class="btn btn-ghost" id="bReset">Voltar aos dados de exemplo</button>
+    </form></details>
+    <div class="form"><h3>Configurações</h3>
+      <div class="field"><label class="label" for="cfgNome">Nome de quem toma os remédios</label><input id="cfgNome" value="${esc(S.demo?'':S.pessoa)}" placeholder="Ex.: Maria" autocomplete="given-name"></div>
+      <div class="field"><label class="label" for="cfgFam">Quem da família recebe os avisos</label><input id="cfgFam" value="${esc(S.demo?'':S.familiar)}" placeholder="Ex.: Ana (filha)"></div>
+      <button class="btn btn-main" id="bCfg" type="button">Salvar</button>
+      <button class="btn btn-ghost" id="bDemo" type="button">${S.demo?'Sair da demonstração e começar do zero':'Ver demonstração'}</button>
+      <button class="btn btn-ghost" id="bZerar" type="button">Apagar tudo e recomeçar</button>
+      <p class="hint" id="zerarMsg"></p></div>
   </div>`;
   document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ S.agenda=S.agenda.filter(a=>a.id!==b.dataset.del); save(); agendarAlarmes(false); render(); toast('Removido da agenda.'); });
   $('#fAg').onsubmit=e=>{ e.preventDefault();
@@ -581,7 +672,11 @@ function renderAgenda(){
     if(!hs.length) return;
     S.agenda.push({id:'a'+Date.now(),principio:$('#agP').value,dose:$('#agD').value.trim(),como:$('#agC').value.trim(),horarios:[...new Set(hs)]});
     save(); agendarAlarmes(true); render(); toast('Salvo na agenda.'); };
-  $('#bReset').onclick=()=>{ S=seed(); save(); agendarAlarmes(false); alvo=null; resultado=null; render(); toast('Dados de exemplo restaurados.'); };
+  $('#bCfg').onclick=()=>{ if(S.demo){ toast('Saia da demonstração para usar seu nome.'); return; } S.pessoa=$('#cfgNome').value.trim(); S.familiar=$('#cfgFam').value.trim(); save(); topo(); toast('Salvo.'); };
+  let confirma='';
+  const pedir=(id,txt,acao)=>{ if(confirma===id){ acao(); return; } confirma=id; $('#zerarMsg').textContent=txt+' Toque de novo para confirmar.'; };
+  $('#bDemo').onclick=()=>pedir('demo', S.demo?'Vai apagar os dados de exemplo.':'Vai trocar seus dados pelos de exemplo.', ()=>{ S = S.demo ? novo() : seed(); save(); agendarAlarmes(false); topo(); alvo=null; resultado=null; if(!S.demo) abrirBoasVindas(); else go('hoje'); toast(S.demo?'Demonstração aberta.':'Pronto para começar.'); });
+  $('#bZerar').onclick=()=>pedir('zerar','Vai apagar a agenda e o histórico.', ()=>{ S=novo(); save(); agendarAlarmes(false); topo(); alvo=null; resultado=null; abrirBoasVindas(); });
 }
 
 /* ---------- tela FAMÍLIA ---------- */
@@ -600,23 +695,23 @@ function renderFamilia(){
   const pct = tot? Math.round(ok/tot*100):0;
   const atrasadas = dosesHoje().filter(d=>d.st==='late');
   const msgs=[];
-  const alertas = atrasadas.map(d=>{ const t=`${S.pessoa} ainda não confirmou ${INFO[d.a.principio].nome} ${d.a.dose} das ${d.h}. Vale ligar para ela.`; msgs.push(t);
+  const alertas = atrasadas.map(d=>{ const t=`${nomeP()} ainda não confirmou ${med(d.a).nome} ${d.a.dose} das ${d.h}. Vale ligar.`; msgs.push(t);
     return `<div class="bubble alert"><b>Alerta:</b> ${esc(t)}<time>${addMin(d.h,30)}</time><button class="wa-mini" data-wa="${msgs.length-1}">Enviar no WhatsApp</button></div>`; }).join('');
   const feed=S.feed.slice(-12).map(f=>{ msgs.push((f.t==='alert'?'Alerta: ':'')+f.txt);
     return `<div class="bubble ${f.t==='alert'?'alert':''}">${f.t==='alert'?'<b>Alerta:</b> ':''}${esc(f.txt)}<time>${f.em}</time><button class="wa-mini" data-wa="${msgs.length-1}">Enviar no WhatsApp</button></div>`; }).join('');
   $('#view-familia').innerHTML=`<div style="display:flex;flex-direction:column;gap:16px">
     <h2>O que a família recebe</h2>
-    <form class="form" id="fWa"><label class="label" for="waNum">WhatsApp de ${esc(S.familiar)}</label>
+    <form class="form" id="fWa"><label class="label" for="waNum">WhatsApp de ${esc(S.familiar||'quem recebe os avisos')}</label>
       <div class="manual"><input id="waNum" inputmode="tel" autocomplete="tel" placeholder="DDD + número, ex.: 81 99999-0000" value="${esc(S.whats||'')}"><button class="btn btn-main" type="submit">Salvar</button></div>
       <p class="hint">Cada mensagem abre o WhatsApp já escrita. É só tocar em enviar. Sem número, o WhatsApp pergunta para quem mandar.</p></form>
     <div class="phone">
-      <div class="phone-head"><span class="avatar">RF</span><div><b>Remédio Falado</b><div class="small">para ${esc(S.familiar)}</div></div></div>
+      <div class="phone-head"><span class="avatar">RF</span><div><b>Remédio Falado</b><div class="small">para ${esc(S.familiar||'a família')}</div></div></div>
       <div class="feed" id="feed">
         <div class="bubble sum"><span class="label">Resumo dos últimos 7 dias</span>
           <div style="display:flex;align-items:baseline;gap:10px;margin-top:6px"><span class="stat">${ok} de ${tot}</span><span class="muted small">doses confirmadas (${pct}%)</span></div>
           <div class="week">${dias.map(d=>`<div><i class="${d.cls}"></i>${d.nome}</div>`).join('')}</div></div>
         ${feed}${alertas}
-        ${!feed&&!alertas?'<div class="bubble">Quando ela apertar TOMEI, a confirmação aparece aqui.</div>':''}
+        ${!feed&&!alertas?'<div class="bubble">Quando a pessoa apertar TOMEI, a confirmação aparece aqui.</div>':''}
       </div>
     </div>
     <button class="btn btn-wa" id="bWaResumo">${WA_SVG}Enviar resumo da semana</button>
@@ -626,8 +721,8 @@ function renderFamilia(){
   const fe=$('#feed'); fe.scrollTop=fe.scrollHeight;
   $('#fWa').onsubmit=e=>{ e.preventDefault(); S.whats=$('#waNum').value.trim(); save(); toast(S.whats?'Número salvo.':'Número apagado.'); };
   document.querySelectorAll('[data-wa]').forEach(b=>b.onclick=()=>enviarWhats(msgs[+b.dataset.wa]));
-  $('#bWaResumo').onclick=()=>{ const r=resumoSemana(); enviarWhats(`resumo dos últimos 7 dias de ${S.pessoa}: ${r.ok} de ${r.tot} doses confirmadas (${r.pct}%).`); };
-  $('#bEsq').onclick=()=>{ const a=S.agenda[0]; if(!a) return; S.feed.push({t:'alert',em:nowHM(),txt:`${S.pessoa} não confirmou ${INFO[a.principio].nome} ${a.dose} das ${a.horarios[a.horarios.length-1]}. Passaram 30 minutos.`}); save(); renderFamilia(); };
+  $('#bWaResumo').onclick=()=>{ const r=resumoSemana(); enviarWhats(`resumo dos últimos 7 dias de ${nomeP()}: ${r.ok} de ${r.tot} doses confirmadas (${r.pct}%).`); };
+  $('#bEsq').onclick=()=>{ const a=S.agenda[0]; if(!a) return; S.feed.push({t:'alert',em:nowHM(),txt:`${nomeP()} não confirmou ${med(a).nome} ${a.dose} das ${a.horarios[a.horarios.length-1]}. Passaram 30 minutos.`}); save(); renderFamilia(); };
 }
 
 /* ---------- WhatsApp (abre com a mensagem pronta; a pessoa toca em enviar) ---------- */
@@ -647,10 +742,10 @@ function resumoSemana(){
 let bairroSel='';
 function mapa(f){ return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(`${f.nome} ${f.rua} ${f.bairro} Recife PE`); }
 function renderGratis(){
-  const meus=[...new Set(S.agenda.map(a=>a.principio))].filter(p=>GRATIS[p]);
+  const meus=[...new Set(S.agenda.map(a=>a.principio))].filter(p=>p&&GRATIS[p]);
   const bairros=[...new Set(FARMACIAS.map(f=>f.bairro))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
   const lista=FARMACIAS.filter(f=>!bairroSel||f.bairro===bairroSel);
-  const remTxt=meus.length? meus.map(p=>`${INFO[p].nome} ${agendaDe(p).dose}`) : ['losartana 50 mg'];
+  const remTxt=meus.length? meus.map(p=>`${INFO[p].nome} ${(S.agenda.find(a=>a.principio===p)||{}).dose||GRATIS[p]}`) : ['losartana 50 mg'];
   const frase=`Olá. Vocês têm ${listaFala(remTxt)} pela Farmácia Popular? Quero retirar de graça.`;
   $('#view-gratis').innerHTML=`<div style="display:flex;flex-direction:column;gap:16px">
     <h2>Onde pegar de graça</h2>
@@ -676,7 +771,7 @@ function renderGratis(){
 
 /* ---------- alarme ---------- */
 function abrirAlarme(d){
-  const i=INFO[d.a.principio], el=$('#alarm');
+  const i=med(d.a), el=$('#alarm');
   el.innerHTML=`<div class="in">
     <svg class="bell" viewBox="0 0 24 24" width="72" height="72" style="margin:0 auto" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
     <span class="hour">${d.h}</span><h2 id="alarmTitle">Hora do ${esc(i.apelido)}</h2>
@@ -684,7 +779,7 @@ function abrirAlarme(d){
     <button class="btn btn-ok" id="alTomei">TOMEI</button>
     <div class="btn-row"><button class="btn btn-ghost" id="alOuvir">Ouvir de novo</button><button class="btn btn-ghost" id="alDepois">Daqui a 10 min</button></div></div>`;
   el.hidden=false;
-  const frase=`${S.pessoa}, hora do ${i.apelido}. ${i.nome}, ${d.a.como}. Quando tomar, aperte o botão verde.`;
+  const frase=`${vocativo()}hora do ${i.apelido}. ${i.nome}, ${d.a.como}. Quando tomar, aperte o botão verde.`;
   falar(frase);
   $('#alTomei').onclick=()=>{ el.hidden=true; tomar(d.a,d.h,'alarme'); };
   $('#alOuvir').onclick=()=>falar(frase);
@@ -711,6 +806,44 @@ function ean13svg(code){
   return `<svg viewBox="0 0 ${w} 62" role="img" aria-label="Código de barras ${code}"><rect width="${w}" height="62" fill="var(--bar-paper)"/><g fill="var(--bar-ink)">${rects}</g><text x="${w/2}" y="60" font-size="8" text-anchor="middle" fill="var(--bar-ink)" font-family="monospace">${code}</text></svg>`;
 }
 
+/* ---------- boas-vindas (primeiro uso) ---------- */
+let passo=0, bvAberto=false;
+function abrirBoasVindas(){ passo=0; bvAberto=true; $('#bv').hidden=false; renderBV(); }
+function fecharBV(depois){ bvAberto=false; $('#bv').hidden=true; topo(); go('hoje'); if(depois) depois(); }
+const FALA_BV=['Olá! Eu sou o Remédio Falado. Eu leio a caixa do remédio, falo para que serve e lembro a hora de tomar. Toque em começar.',
+  'Qual é o seu nome? Escreva ou peça ajuda a alguém. Se preferir, toque em pular.',
+  'Quem da família vai receber os avisos? Se preferir, toque em pular.',
+  'Vamos colocar o primeiro remédio? Pegue a caixa e toque em ler a caixa do remédio.'];
+function renderBV(){
+  const el=$('#bv'), dots=`<div class="bv-dots" aria-hidden="true">${[1,2,3].map(n=>`<i class="${n<=passo?'on':''}"></i>`).join('')}</div>`;
+  const ouvir=`<button class="btn btn-ghost" id="bvOuvir" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6"/></svg>Ouvir</button>`;
+  let h='';
+  if(passo===0) h=`<div class="bv-logo"><svg viewBox="0 0 40 40" aria-hidden="true"><rect x="3" y="11" width="34" height="18" rx="9" fill="var(--pill)" stroke="var(--fg)" stroke-width="2"/><path d="M20 11v18" stroke="var(--fg)" stroke-width="2"/><path d="M27 16c2 2 2 6 0 8M30.5 13.5c3.5 3.5 3.5 9.5 0 13" stroke="var(--fg)" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+    <h2 id="bvT">Olá! Eu sou o Remédio Falado</h2>
+    <p>Eu leio a caixa do remédio, <b>falo para que serve</b> e <b>lembro a hora de tomar</b>.</p>
+    <button class="btn btn-pill" id="bvComecar" type="button">Começar</button>${ouvir}
+    <button class="btn btn-ghost" id="bvDemo" type="button">Ver demonstração</button>`;
+  if(passo===1) h=`${dots}<h2 id="bvT">Qual é o seu nome?</h2>
+    <input class="bv-in" id="bvNome" placeholder="Seu nome" autocomplete="given-name" value="${esc(S.pessoa)}">
+    <button class="btn btn-pill" id="bvOk" type="button">Continuar</button>${ouvir}<button class="linkbtn bv-pular" id="bvPular" type="button">Pular</button>`;
+  if(passo===2) h=`${dots}<h2 id="bvT">Quem da família recebe os avisos?</h2>
+    <input class="bv-in" id="bvFam" placeholder="Nome. Ex.: Ana (filha)" value="${esc(S.familiar)}">
+    <input class="bv-in" id="bvWa" inputmode="tel" placeholder="WhatsApp com DDD (opcional)" value="${esc(S.whats||'')}">
+    <button class="btn btn-pill" id="bvOk" type="button">Continuar</button>${ouvir}<button class="linkbtn bv-pular" id="bvPular" type="button">Pular</button>`;
+  if(passo===3) h=`${dots}<h2 id="bvT">Vamos colocar o primeiro remédio?</h2>
+    <p>Pegue a caixa do remédio. Eu leio o código de barras e você só escolhe os horários.</p>
+    <button class="btn btn-pill" id="bvLer" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3M8 8v8M12 8v8M16 8v8"/></svg>Ler a caixa do remédio</button>${ouvir}
+    <button class="linkbtn bv-pular" id="bvDepois" type="button">Fazer isso depois</button>`;
+  el.innerHTML=`<div class="bv-in-wrap">${h}</div>`;
+  $('#bvOuvir').onclick=()=>falar(FALA_BV[passo]);
+  const seg=()=>{ passo++; renderBV(); falar(FALA_BV[passo]); const f=el.querySelector('input'); if(f) setTimeout(()=>f.focus(),300); };
+  if(passo===0){ $('#bvComecar').onclick=()=>{ S=novo(); save(); seg(); }; $('#bvDemo').onclick=()=>{ S=seed(); save(); agendarAlarmes(false); fecharBV(()=>falar('Esta é a demonstração, com a Dona Lúcia.')); }; }
+  if(passo===1){ $('#bvOk').onclick=()=>{ S.pessoa=$('#bvNome').value.trim(); save(); seg(); }; $('#bvPular').onclick=seg; }
+  if(passo===2){ $('#bvOk').onclick=()=>{ S.familiar=$('#bvFam').value.trim(); S.whats=$('#bvWa').value.trim(); save(); seg(); }; $('#bvPular').onclick=seg; }
+  if(passo===3){ $('#bvLer').onclick=()=>fecharBV(()=>{ go('ler'); if(SCAN) lerNativo(); }); $('#bvDepois').onclick=()=>fecharBV(); }
+  const t=$('#bvT'); if(t) t.focus && t.setAttribute('tabindex','-1');
+}
+
 /* ---------- navegação ---------- */
 let atual='hoje';
 function render(){ ({hoje:renderHoje,ler:renderLer,agenda:renderAgenda,familia:renderFamilia,gratis:renderGratis})[atual](); }
@@ -721,10 +854,10 @@ function go(v){
   document.querySelectorAll('nav.tabs button').forEach(b=>{ if(b.dataset.go===v) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
   render(); window.scrollTo(0,0);
 }
-document.addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(b){ if(b.closest('nav')) { alvo=null; resultado=null; } go(b.dataset.go); } });
+document.addEventListener('click',e=>{ const b=e.target.closest('[data-go]'); if(b){ if(b.closest('nav')) { alvo=null; resultado=null; } go(b.dataset.go); if(b.dataset.scan && SCAN) lerNativo(); } });
 $('#photo').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(f) lerImagem(f); });
 render();
-agendarAlarmes(true);
+if(primeiroUso) abrirBoasVindas(); else agendarAlarmes(true);
 })();
 </script>
 </body>
